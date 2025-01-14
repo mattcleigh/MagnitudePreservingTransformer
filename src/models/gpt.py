@@ -10,7 +10,7 @@ from src.layers.transformer import EncoderBlock
 
 
 class GPT(LightningModule):
-    """Class for GPT style jet pre-training."""
+    """Generative Pre-trained Transformer model."""
 
     def __init__(
         self,
@@ -29,6 +29,7 @@ class GPT(LightningModule):
         layer_config = layer_config or {}
         self.dim = dim
         self.num_layers = num_layers
+        self.max_seq_len = max_seq_len
 
         self.embed = nn.Embedding(vocab_size, dim)
         self.abs_enc = nn.Parameter(T.randn(1, max_seq_len, dim) / 1000)
@@ -39,7 +40,7 @@ class GPT(LightningModule):
         self.out_layer = nn.Linear(dim, vocab_size)
 
     def forward(self, x: T.Tensor, y: T.Tensor | None = None) -> T.Tensor:
-        x = self.embed(x.long()) + self.abs_enc
+        x = self.embed(x.long()) + self.abs_enc[:, : x.size(1)]
         for layer in self.layers:
             x = layer(x)
         if y is not None:

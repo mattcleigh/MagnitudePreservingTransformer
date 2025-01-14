@@ -44,11 +44,11 @@ class SelfAttention(nn.Module):
         self.out_drop = nn.Dropout(drop)
 
         self.qk_norm = get_norm(qk_norm, self.attn_dim)
-        self.out_norm = get_norm(out_norm, dim)
+        self.out_norm = get_norm(out_norm, self.dim)
 
     def forward(self, x: T.Tensor) -> T.Tensor:
         B, S, D = x.shape
-        shape = (B, S, 3, self.num_heads, D // self.num_heads)
+        shape = (B, S, 3, self.num_heads, self.attn_dim)
 
         q, k, v = self.in_proj(x).reshape(shape).permute(2, 0, 3, 1, 4).unbind(0)
         q = self.qk_norm(q)
@@ -64,7 +64,8 @@ class SelfAttention(nn.Module):
         a = a.transpose(1, 2).contiguous().view(B, S, D)
 
         a = self.out_norm(a)
-        return self.out_proj(a)
+        a = self.out_proj(a)
+        return self.out_drop(a)
 
 
 class EncoderBlock(nn.Module):

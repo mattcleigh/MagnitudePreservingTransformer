@@ -25,15 +25,15 @@ class TokenNorm(nn.Module):
         self.dim = dim
         self.const = dim ** (-0.5)
         self.gamma = gamma
-        self.register_buffer("mean", T.zeros((1, 1, dim), dtype=T.float32))
+        self.register_buffer("mean", T.zeros((1, 1, self.dim), dtype=T.float32))
 
     def forward(self, x: T.Tensor) -> T.Tensor:
         if self.training:
             mean = x.float().mean(dim=(0, 1), keepdim=True)
-            self.mean = self.mean * self.gamma + mean * (1 - self.gamma)
+            self.mean = self.mean * self.gamma + mean.detach() * (1 - self.gamma)
         else:
             mean = self.mean
-        x = x - mean
+        x = x - mean.to(x.dtype)
         norm = T.linalg.norm(x.float(), dim=-1, keepdim=True)
         return x / (norm * self.const + 1e-8).to(x.dtype)
 

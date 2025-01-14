@@ -65,7 +65,7 @@ model:
 # Trainer settings
 trainer:
   _target_: lightning.Trainer
-  max_epochs: 10
+  max_epochs: 10000
   enable_progress_bar: True
   gradient_clip_val: 1
   precision: 16-mixed
