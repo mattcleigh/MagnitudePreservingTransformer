@@ -1,0 +1,31 @@
+# Directories
+__pycache__
+data/
+logs/
+outputs/
+plots/
+.vscode/
+container/
+wandb/
+configs/sweeps/
+slurmscripts/
+user**/**
+**user**
+*.snakemake
+*.pytest
+.config/
+.nv/
+
+# Anything with cache in the name, pytest, ruff, or wandb...
+*cache*
+
+# File types
+launch.json
+.mypy*
+*workspace
+*.pyc
+*.ipynb
+*.out
+*.sh
+*.log
+*.idea

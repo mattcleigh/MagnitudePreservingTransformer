@@ -1,0 +1,105 @@
+# @package _global_
+
+# Order indicates overwriting
+defaults:
+  - _self_
+  - hydra: default.yaml
+  - experiment: null
+
+seed: 42 # For reproducibility
+project_name: gpt # Determines output directory path and wandb project
+network_name: test # Used for both saving and wandb
+output_dir: /srv/beegfs/scratch/groups/rodem/nlp/
+ckpt_path: null  # Checkpoint path to resume training
+weight_ckpt_path: null # Checkpoint path to load weights (but not optimizers etc)
+
+# Extra tweaks available with the new pytorch version
+precision: medium # Should use medium if on ampere gpus
+compile: null # Can set to default for faster compiles
+tags: null # Extra tags passed to the logger
+
+# COMPLETELY replaces the all config info with what is contained in ${paths.full_path}
+# This is ideal for resuming a job, log to the same directory
+# Will also resume the loggers and set the ckpt_path to the latest
+full_resume: False
+ckpt_flag: last.ckpt # Name of the checkpoint file, can use wildcards
+
+# Datamodule settings
+datamodule:
+  _target_: src.datamodules.text.TextModule
+  train_path: ${root_dir}/data/wikitext-103/train.npy
+  val_path: ${root_dir}/data/wikitext-103/valid.npy
+  test_path: ${root_dir}/data/wikitext-103/test.npy
+  max_seq_len: 512
+  train_epoch_size: 10000
+  val_epoch_size: 1000
+  batch_size: 2
+  num_workers: 2
+  pin_memory: True
+
+# Model settings
+model:
+  _target_: src.models.gpt.GPT
+  vocab_size: 50257
+  dim: 128
+  num_layers: 4
+  max_seq_len: ${datamodule.max_seq_len}
+  final_norm: True
+  layer_config:
+    num_heads: 8
+    drop: 0.1
+    qk_norm: rms
+    out_norm: none
+    causal: True
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: True
+    lr: 1e-4
+  scheduler:
+    _target_: src.schedulers.one_cycle
+    _partial_: True
+    max_steps: 10_001
+
+# Trainer settings
+trainer:
+  _target_: lightning.Trainer
+  max_epochs: 10
+  enable_progress_bar: True
+  gradient_clip_val: 1
+  precision: 16-mixed
+  check_val_every_n_epoch: 1
+  accelerator: auto
+  devices: 1
+  num_nodes: 1
+  default_root_dir: ${paths.full_path}
+
+# Logger settings
+logger:
+  _target_: lightning.pytorch.loggers.wandb.WandbLogger
+  offline: False
+  id: null
+  log_model: False
+  tags: ${tags}
+  project: ${project_name}
+  name: ${network_name}
+  save_dir: ${paths.full_path}
+  resume: ${full_resume}
+
+# Callbacks
+checkpoint_per_epoch:
+  _target_: lightning.pytorch.callbacks.ModelCheckpoint
+  dirpath: ${paths.full_path}/checkpoints
+  filename: last
+  enable_version_counter: False
+  auto_insert_metric_name: False
+model_summary:
+  _target_: lightning.pytorch.callbacks.RichModelSummary
+  max_depth: 2
+lr_monitor:
+  _target_: lightning.pytorch.callbacks.LearningRateMonitor
+  logging_interval: step
+
+# Interpolated paths
+root_dir: ${oc.env:PROJECT_ROOT}
+full_path: ${output_dir}/${project_name}/${network_name}/
+

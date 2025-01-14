@@ -1,0 +1,50 @@
+[project]
+name = "nlp_tests"
+version = "0.1"
+description = "A simple library for testing homegrown NLP models"
+license = {text = "MIT"}
+requires-python = ">=3.10,<3.12"
+dynamic = ["dependencies"]
+authors = [
+    {name = "Matthew Leigh", email = "mattcleigh@gmail.com"}
+]
+
+[project.urls]
+"Homepage" = "https://github.com/mattcleigh/nlp_tests"
+"Issue Tracker" = "https://github.com/mattcleigh/nlp_tests/issues"
+
+[tool.setuptools]
+packages = ["jetssl"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.ruff]
+line-length = 88
+preview = true
+target-version = "py311"
+lint.select = ["ALL", "D212", "D417"]
+lint.ignore = [
+    "ANN002", "PTH123", "S602", "PLC0415", "ANN101", "ANN201", "PLR0911",
+    "E402", "TRY003", "D401", "PLR0913", "PLR2004", "ANN001", "S102", "C901",
+    "D101", "EXE002", "ANN204", "D205", "ISC001", "D105", "ARG002", "SLF001",
+    "DOC501", "DTZ005", "FBT", "N802", "G004", "ANN401", "D102", "N812",
+    "PLR6301", "RUF017", "PLR0914", "TD002", "ERA", "D104", "DTZ007", "CPY001",
+    "BLE001", "FIX", "PLR0917", "T201", "PLR1702", "PLR0912", "S404", "ANN003",
+    "D100", "S105", "EM", "D103", "INP", "N803", "N806", "PLW1514", "PD011",
+    "B905", "ANN202", "COM", "PLR0915", "ARG001", "S311", "RUF015", "TD003",
+    "DOC201", "PD901", "F811", "PLR6104", "TRY002", "S101", "DOC402", "D212",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+mark-parentheses = false
+
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "CRITICAL"
+filterwarnings = ["ignore::DeprecationWarning"]
+pythonpath = ["."]
