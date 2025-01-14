@@ -18,7 +18,7 @@ precision: medium # Should use medium if on ampere gpus
 compile: null # Can set to default for faster compiles
 tags: null # Extra tags passed to the logger
 
-# COMPLETELY replaces the all config info with what is contained in ${paths.full_path}
+# COMPLETELY replaces the all config info with what is contained in ${full_path}
 # This is ideal for resuming a job, log to the same directory
 # Will also resume the loggers and set the ckpt_path to the latest
 full_resume: False
@@ -28,9 +28,9 @@ ckpt_flag: last.ckpt # Name of the checkpoint file, can use wildcards
 datamodule:
   _target_: src.datamodules.text.TextModule
   train_path: ${root_dir}/data/wikitext-103/train.npy
-  val_path: ${root_dir}/data/wikitext-103/valid.npy
+  val_path: ${root_dir}/data/wikitext-103/validation.npy
   test_path: ${root_dir}/data/wikitext-103/test.npy
-  max_seq_len: 512
+  max_seq_len: 1024
   train_epoch_size: 10000
   val_epoch_size: 1000
   batch_size: 2
@@ -41,13 +41,14 @@ datamodule:
 model:
   _target_: src.models.gpt.GPT
   vocab_size: 50257
-  dim: 128
-  num_layers: 4
+  dim: 512
+  num_layers: 8
   max_seq_len: ${datamodule.max_seq_len}
-  final_norm: True
+  final_norm: layer
   layer_config:
     num_heads: 8
     drop: 0.1
+    pre_norm: layer
     qk_norm: rms
     out_norm: none
     causal: True
@@ -56,9 +57,10 @@ model:
     _partial_: True
     lr: 1e-4
   scheduler:
-    _target_: src.schedulers.one_cycle
+    _target_: src.schedulers.linear_warmup_exp_decay
     _partial_: True
-    max_steps: 10_001
+    warmup_steps: 10_000
+    half_life: 100_000
 
 # Trainer settings
 trainer:
@@ -71,7 +73,7 @@ trainer:
   accelerator: auto
   devices: 1
   num_nodes: 1
-  default_root_dir: ${paths.full_path}
+  default_root_dir: ${full_path}
 
 # Logger settings
 logger:
@@ -82,22 +84,23 @@ logger:
   tags: ${tags}
   project: ${project_name}
   name: ${network_name}
-  save_dir: ${paths.full_path}
+  save_dir: ${full_path}
   resume: ${full_resume}
 
 # Callbacks
-checkpoint_per_epoch:
-  _target_: lightning.pytorch.callbacks.ModelCheckpoint
-  dirpath: ${paths.full_path}/checkpoints
-  filename: last
-  enable_version_counter: False
-  auto_insert_metric_name: False
-model_summary:
-  _target_: lightning.pytorch.callbacks.RichModelSummary
-  max_depth: 2
-lr_monitor:
-  _target_: lightning.pytorch.callbacks.LearningRateMonitor
-  logging_interval: step
+callbacks:
+  checkpoint_per_epoch:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: ${full_path}/checkpoints
+    filename: last
+    enable_version_counter: False
+    auto_insert_metric_name: False
+  model_summary:
+    _target_: lightning.pytorch.callbacks.RichModelSummary
+    max_depth: 2
+  lr_monitor:
+    _target_: lightning.pytorch.callbacks.LearningRateMonitor
+    logging_interval: step
 
 # Interpolated paths
 root_dir: ${oc.env:PROJECT_ROOT}

@@ -1,0 +1,10 @@
+# @package _global_
+
+network_name: all_rms
+
+model:
+  final_norm: rms
+  layer_config:
+    pre_norm: rms
+    qk_norm: rms
+    out_norm: rms

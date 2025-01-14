@@ -80,9 +80,8 @@ def print_config(
         "datamodule",
         "model",
         "callbacks",
-        "loggers",
+        "logger",
         "trainer",
-        "paths",
     ),
     resolve: bool = True,
 ) -> None:
@@ -153,7 +152,7 @@ def save_config(cfg: OmegaConf) -> None:
             log.warning("Is the name of the logger set correctly")
 
     # save config tree to file
-    OmegaConf.save(cfg, Path(cfg.paths.full_path, "full_config.yaml"), resolve=True)
+    OmegaConf.save(cfg, Path(cfg.full_path, "full_config.yaml"), resolve=True)
 
 
 @rank_zero_only

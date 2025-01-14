@@ -17,7 +17,7 @@ class TextDataset(Dataset):
         super().__init__()
         self.epoch_size = epoch_size
         self.max_seq_len = max_seq_len
-        self.data = T.from_numpy(np.load(file_path, mmap_mode="r"))
+        self.data = T.from_numpy(np.load(file_path)).long()  # Compile needs long
 
     def __len__(self) -> int:
         return self.epoch_size

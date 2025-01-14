@@ -43,7 +43,7 @@ class SelfAttention(nn.Module):
         self.out_proj = nn.Linear(dim, dim)
         self.out_drop = nn.Dropout(drop)
 
-        self.qk_norm = get_norm(qk_norm, dim)
+        self.qk_norm = get_norm(qk_norm, self.attn_dim)
         self.out_norm = get_norm(out_norm, dim)
 
     def forward(self, x: T.Tensor) -> T.Tensor:
@@ -54,8 +54,13 @@ class SelfAttention(nn.Module):
         q = self.qk_norm(q)
         k = self.qk_norm(k)
 
-        attn_drop = self.drop * self.training
-        a = F.scaled_dot_product_attention(q, k, v, attn_drop, is_causal=self.causal)
+        a = F.scaled_dot_product_attention(
+            q,
+            k,
+            v,
+            dropout_p=self.drop * self.training,
+            is_causal=self.causal,
+        )
         a = a.transpose(1, 2).contiguous().view(B, S, D)
 
         a = self.out_norm(a)
@@ -81,10 +86,12 @@ class EncoderBlock(nn.Module):
         self.ff = SwiGLUNet(dim, ff_mult, drop)
         self.norm1 = get_norm(pre_norm, dim)
         self.norm2 = get_norm(pre_norm, dim)
+        self.ls_1 = nn.Parameter(T.randn(1, 1, dim) / 100)
+        self.ls_2 = nn.Parameter(T.randn(1, 1, dim) / 100)
 
     def forward(self, x: T.Tensor) -> T.Tensor:
-        x = x + self.attn(self.norm1(x))
-        return x + self.ff(self.norm2(x))
+        x = x + self.ls_1 * self.attn(self.norm1(x))
+        return x + self.ls_2 * self.ff(self.norm2(x))
 
 
 class Transformer(nn.Module):

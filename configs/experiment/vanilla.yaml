@@ -1,0 +1,10 @@
+# @package _global_
+
+network_name: vanilla
+
+model:
+  final_norm: layer
+  layer_config:
+    pre_norm: layer
+    qk_norm: rms
+    out_norm: none

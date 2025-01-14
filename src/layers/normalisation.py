@@ -33,7 +33,7 @@ class TokenNorm(nn.Module):
     def forward(self, x: T.Tensor) -> T.Tensor:
         if self.training:
             mean = x.float().mean(dim=(0, 1), keepdim=True)
-            self.means = self.mean * self.gamma + mean * (1 - self.gamma)
+            self.mean = self.mean * self.gamma + mean * (1 - self.gamma)
         else:
             mean = self.mean
         x = x - mean

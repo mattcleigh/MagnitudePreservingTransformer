@@ -24,7 +24,7 @@ def linear_warmup_exp_decay(
     warmup_steps: int = 1000,
     half_life: int = 1000,
     final_factor: float = 1e-3,
-    init_factor: float = 1e-1,
+    init_factor: float = 1e-3,
 ) -> LambdaLR:
     """Return a scheduler with a linear warmup and a sqrt decay."""
 

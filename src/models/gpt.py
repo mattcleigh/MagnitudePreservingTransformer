@@ -39,12 +39,12 @@ class GPT(LightningModule):
         self.out_layer = nn.Linear(dim, vocab_size)
 
     def forward(self, x: T.Tensor, y: T.Tensor | None = None) -> T.Tensor:
-        x = self.embed(x) + self.abs_enc
+        x = self.embed(x.long()) + self.abs_enc
         for layer in self.layers:
             x = layer(x)
         if y is not None:
             output = self.out_layer(self.final_norm(x))
-            loss = F.cross_entropy(output.view(-1, output.size(-1)), y.view(-1))
+            loss = F.cross_entropy(output.view(-1, output.size(-1)), y.long().view(-1))
         else:
             output = self.out_layer(self.final_norm(x[:, [-1]]))
             loss = None

@@ -12,6 +12,7 @@ root = rootutils.setup_root(search_from=__file__, pythonpath=True)
 
 
 from src.hydra_utils import (
+    instantiate_collection,
     log_hyperparameters,
     print_config,
     reload_original_config,
@@ -57,7 +58,7 @@ def main(cfg: DictConfig) -> None:
         model = T.compile(model, mode=cfg.compile)
 
     log.info("Instantiating all callbacks")
-    callbacks = hydra.utils.instantiate(cfg.callbacks)
+    callbacks = instantiate_collection(cfg.callbacks)
 
     log.info("Instantiating the logger")
     logger = hydra.utils.instantiate(cfg.logger)
