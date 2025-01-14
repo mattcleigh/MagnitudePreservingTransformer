@@ -1,10 +1,7 @@
-"""
-Various custom normalisation layers.
-"""
+"""Various custom normalisation layers."""
 
 import torch as T
 from torch import nn
-from torch.nn import functional as F
 
 
 class RMSNorm(nn.Module):
