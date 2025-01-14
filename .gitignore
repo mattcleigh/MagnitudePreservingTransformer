@@ -1,6 +1,6 @@
 # Directories
 __pycache__
-data/
+data/*
 logs/
 outputs/
 plots/
