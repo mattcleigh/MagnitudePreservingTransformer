@@ -4,17 +4,22 @@ import torch as T
 from torch import nn
 
 
+@T.compile
+def quick_norm(x, dim: int | tuple = -1, eps: float = 1e-8):
+    norm = T.linalg.vector_norm(x.float(), dim=dim, keepdim=True) + eps
+    return (x / norm).to(x.dtype)
+
+
 class RMSNorm(nn.Module):
     """Root Mean Square Normalisation layer."""
 
     def __init__(self, dim: int) -> None:
         super().__init__()
         self.dim = dim
-        self.const = dim ** (-0.5)
+        self.const = dim**0.5
 
     def forward(self, x: T.Tensor) -> T.Tensor:
-        norm = T.linalg.norm(x.float(), dim=-1, keepdim=True)
-        return x / (norm * self.const + 1e-8).to(x.dtype)
+        return quick_norm(x, dim=-1) * self.const
 
 
 class TokenNorm(nn.Module):
@@ -23,7 +28,7 @@ class TokenNorm(nn.Module):
     def __init__(self, dim: int, gamma: float = 0.999) -> None:
         super().__init__()
         self.dim = dim
-        self.const = dim ** (-0.5)
+        self.const = dim**0.5
         self.gamma = gamma
         self.register_buffer("mean", T.zeros((1, 1, self.dim), dtype=T.float32))
 
@@ -34,8 +39,7 @@ class TokenNorm(nn.Module):
         else:
             mean = self.mean
         x = x - mean.to(x.dtype)
-        norm = T.linalg.norm(x.float(), dim=-1, keepdim=True)
-        return x / (norm * self.const + 1e-8).to(x.dtype)
+        return quick_norm(x, dim=-1) * self.const
 
 
 class Identity(nn.Module):

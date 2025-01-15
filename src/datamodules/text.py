@@ -23,8 +23,7 @@ class TextDataset(Dataset):
             self.data = T.from_numpy(np.load(file_path))
         elif file_path.endswith(".bin"):
             self.from_bin = True
-            self.data = np.memmap(file_path, dtype=np.uint16, mode="r")
-
+            self.data = T.from_numpy(np.fromfile(file_path, dtype=np.uint16))
     def __len__(self) -> int:
         return self.epoch_size
 
@@ -32,9 +31,6 @@ class TextDataset(Dataset):
         idx = random.randint(0, len(self.data) - self.max_seq_len - 1)
         x = self.data[idx : idx + self.max_seq_len]
         y = self.data[idx + 1 : idx + 1 + self.max_seq_len]
-        if self.from_bin:
-            x = T.from_numpy(x.astype(np.int64))
-            y = T.from_numpy(y.astype(np.int64))
         return x.long(), y.long()
 
 
