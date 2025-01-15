@@ -3,12 +3,13 @@
 # Order indicates overwriting
 defaults:
   - _self_
-  - hydra: default.yaml
+  - hydra: default
+  - datamodule: openwebtext
   - experiment: null
 
 seed: 42 # For reproducibility
 project_name: gpt # Determines output directory path and wandb project
-network_name: test # Used for both saving and wandb
+network_name: gpt # Used for both saving and wandb
 output_dir: /srv/beegfs/scratch/groups/rodem/nlp/
 ckpt_path: null  # Checkpoint path to resume training
 weight_ckpt_path: null # Checkpoint path to load weights (but not optimizers etc)
@@ -24,48 +25,37 @@ tags: null # Extra tags passed to the logger
 full_resume: False
 ckpt_flag: last.ckpt # Name of the checkpoint file, can use wildcards
 
-# Datamodule settings
-datamodule:
-  _target_: src.datamodules.text.TextModule
-  train_path: ${root_dir}/data/wikitext-103/train.npy
-  val_path: ${root_dir}/data/wikitext-103/validation.npy
-  test_path: ${root_dir}/data/wikitext-103/test.npy
-  max_seq_len: 1024
-  train_epoch_size: 10000
-  val_epoch_size: 1000
-  batch_size: 2
-  num_workers: 2
-  pin_memory: True
-
 # Model settings
 model:
   _target_: src.models.gpt.GPT
   vocab_size: 50257
   dim: 512
-  num_layers: 8
+  num_layers: 12
   max_seq_len: ${datamodule.max_seq_len}
-  final_norm: layer
+  final_norm: rms
   layer_config:
     num_heads: 8
-    drop: 0.1
-    pre_norm: layer
-    qk_norm: rms
-    out_norm: none
+    drop: 0
     causal: True
+    pre_norm: rms
+    qk_norm: rms
+    out_norm: rms
   optimizer:
     _target_: torch.optim.AdamW
     _partial_: True
-    lr: 1e-4
+    lr: 5e-4
+    betas: [0.9, 0.95]
+    weight_decay: 0.1
   scheduler:
-    _target_: src.schedulers.linear_warmup_exp_decay
+    _target_: src.schedulers.linear_warmup_cosine_decay
     _partial_: True
-    warmup_steps: 10_000
-    half_life: 100_000
+    warmup_steps: 1000
+    total_steps: 1000_000
 
 # Trainer settings
 trainer:
   _target_: lightning.Trainer
-  max_epochs: 10000
+  max_epochs: 999999
   enable_progress_bar: True
   gradient_clip_val: 1
   precision: 16-mixed

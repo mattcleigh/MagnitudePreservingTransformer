@@ -1,0 +1,10 @@
+_target_: src.datamodules.text.TextModule
+train_path: /home/users/l/leighm/scratch/openwebtext/train.bin
+val_path: /home/users/l/leighm/scratch/openwebtext/test.bin
+test_path: /home/users/l/leighm/scratch/openwebtext/test.bin
+max_seq_len: 512
+train_epoch_size: 100_000
+val_epoch_size: 1000
+batch_size: 32
+num_workers: 2
+pin_memory: True

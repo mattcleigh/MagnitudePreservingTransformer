@@ -37,6 +37,26 @@ def linear_warmup_exp_decay(
     return LambdaLR(optimizer, fn)
 
 
+def linear_warmup_cosine_decay(
+    optimizer: Optimizer,
+    warmup_steps: int = 1000,
+    total_steps: int = 10000,
+    final_factor: float = 5e-2,
+    init_factor: float = 0,
+) -> LambdaLR:
+    """Return a scheduler with a linear warmup and a cosine decay."""
+
+    def fn(x: int) -> float:
+        if x <= warmup_steps:
+            return init_factor + x * (1 - init_factor) / max(1, warmup_steps)
+        if x >= total_steps:
+            return final_factor
+        t = (x - warmup_steps) / (total_steps) * math.pi
+        return (1 + math.cos(t)) * (1 - final_factor) / 2 + final_factor
+
+    return LambdaLR(optimizer, fn)
+
+
 def one_cycle(
     optimizer: Optimizer,
     total_steps: int = 1000,

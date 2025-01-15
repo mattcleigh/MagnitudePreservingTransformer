@@ -4,6 +4,7 @@ import rootutils
 import tiktoken
 import torch as T
 import torch.nn.functional as F
+from tqdm import trange
 
 
 root = rootutils.setup_root(search_from=__file__, pythonpath=True)
@@ -25,19 +26,25 @@ model.requires_grad_(False)
 # Get the maximum input tokens
 max_len = model.max_seq_len
 max_new_tokens = 100
-temp = 1
-top_k = 20
+temp = 0.1
+top_k = 50
 text = ""
 
 # Do a loop to generate the new tokens
 while True:
-    text += input("Enter the text to continue: ")
+    new = input("Enter the next text: ")
+    if new == "restart":
+        text = ""
+        continue
+    else:
+        text += new
+    print(text)
     tokens = enc.encode_ordinary(text)
 
     # Convert the input to pytorch tensor.
     tokens = T.tensor(tokens, dtype=T.long, device=model.device).unsqueeze(0)
 
-    for _ in range(max_new_tokens):
+    for _ in trange(max_new_tokens):
         # Trim the input to the maximum sequence length.
         input_tokens = tokens if tokens.shape[1] <= max_len else tokens[:, -max_len:]
 
@@ -57,4 +64,6 @@ while True:
         tokens = T.hstack([tokens, idx])
         text += enc.decode(idx[0].tolist())
 
+    print("-------------------------")
     print(text)
+    print("-------------------------")

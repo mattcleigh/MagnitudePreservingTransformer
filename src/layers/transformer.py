@@ -111,9 +111,9 @@ class Transformer(nn.Module):
         layer_config: dict | None = None,
     ) -> None:
         super().__init__()
-        assert not (do_pos_enc and not max_seq_len), (
-            "Define max_seq_len for positional encoding"
-        )
+        assert not (
+            do_pos_enc and not max_seq_len
+        ), "Define max_seq_len for positional encoding"
         layer_config = layer_config or {}
 
         self.dim = dim
