@@ -24,6 +24,7 @@ class TextDataset(Dataset):
         elif file_path.endswith(".bin"):
             self.from_bin = True
             self.data = T.from_numpy(np.fromfile(file_path, dtype=np.uint16))
+
     def __len__(self) -> int:
         return self.epoch_size
 

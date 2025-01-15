@@ -6,7 +6,6 @@ import torch as T
 import torch.nn.functional as F
 from tqdm import trange
 
-
 root = rootutils.setup_root(search_from=__file__, pythonpath=True)
 
 
