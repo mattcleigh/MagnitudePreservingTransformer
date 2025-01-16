@@ -49,11 +49,9 @@ class SelfAttention(nn.Module):
     def forward(self, x: T.Tensor) -> T.Tensor:
         B, S, D = x.shape
         shape = (B, S, 3, self.num_heads, self.attn_dim)
-
         q, k, v = self.in_proj(x).reshape(shape).permute(2, 0, 3, 1, 4).unbind(0)
         q = self.qk_norm(q)
         k = self.qk_norm(k)
-
         a = F.scaled_dot_product_attention(
             q,
             k,
@@ -62,7 +60,6 @@ class SelfAttention(nn.Module):
             is_causal=self.causal,
         )
         a = a.transpose(1, 2).contiguous().view(B, S, D)
-
         a = self.out_norm(a)
         a = self.out_proj(a)
         return self.out_drop(a)
@@ -111,9 +108,9 @@ class Transformer(nn.Module):
         layer_config: dict | None = None,
     ) -> None:
         super().__init__()
-        assert not (do_pos_enc and not max_seq_len), (
-            "Define max_seq_len for positional encoding"
-        )
+        assert not (
+            do_pos_enc and not max_seq_len
+        ), "Define max_seq_len for positional encoding"
         layer_config = layer_config or {}
 
         self.dim = dim
@@ -136,7 +133,7 @@ class Transformer(nn.Module):
     def forward(self, x: T.Tensor) -> T.Tensor:
         x = self.in_layer(x)
         if hasattr(self, "abs_enc"):
-            x = x + self.abs_enc
+            x = x + self.abs_enc[:, : x.shape[1]]
         for layer in self.layers:
             x = layer(x)
         return self.out_layer(self.final_norm(x))

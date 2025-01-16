@@ -1,13 +1,23 @@
 """Various custom normalisation layers."""
 
+import math
+
 import torch as T
 from torch import nn
 
 
-@T.compile
-def quick_norm(x, dim: int | tuple = -1, eps: float = 1e-8):
-    norm = T.linalg.vector_norm(x.float(), dim=dim, keepdim=True) + eps
-    return (x / norm).to(x.dtype)
+def unit_norm(x, dim: int | tuple = -1, eps: float = 1e-4) -> T.Tensor:
+    """Normalise the vector to a unit length."""
+    n = T.linalg.vector_norm(x.float(), dim=dim, keepdim=True, dtype=T.float32)
+    n = T.add(eps, n)
+    return x / n.to(x.dtype)
+
+
+def rms_norm(x, dim: int | tuple = -1, eps: float = 1e-4) -> T.Tensor:
+    """Normalise the vector to have unit variance."""
+    n = T.linalg.vector_norm(x.float(), dim=dim, keepdim=True, dtype=T.float32)
+    n = T.add(eps, n, alpha=math.sqrt(n.numel() / x.numel()))
+    return x / n.to(x.dtype)
 
 
 class RMSNorm(nn.Module):
@@ -16,30 +26,26 @@ class RMSNorm(nn.Module):
     def __init__(self, dim: int) -> None:
         super().__init__()
         self.dim = dim
-        self.const = dim**0.5
 
     def forward(self, x: T.Tensor) -> T.Tensor:
-        return quick_norm(x, dim=-1) * self.const
+        return rms_norm(x, dim=-1)
 
 
 class TokenNorm(nn.Module):
     """Subtract the mean of the tokens before normalising."""
 
-    def __init__(self, dim: int, gamma: float = 0.999) -> None:
+    def __init__(self, dim: int, alpha: float = 1e-4) -> None:
         super().__init__()
         self.dim = dim
-        self.const = dim**0.5
-        self.gamma = gamma
+        self.alpha = alpha
         self.register_buffer("mean", T.zeros((1, 1, self.dim), dtype=T.float32))
 
     def forward(self, x: T.Tensor) -> T.Tensor:
         if self.training:
-            mean = x.float().mean(dim=(0, 1), keepdim=True)
-            self.mean = self.mean * self.gamma + mean.detach() * (1 - self.gamma)
-        else:
-            mean = self.mean
-        x = x - mean.to(x.dtype)
-        return quick_norm(x, dim=-1) * self.const
+            mean = x.detach().float().mean(dim=(0, 1), keepdim=True)
+            self.mean.lerp_(mean, self.alpha)
+        x = x - self.mean.to(x.dtype)
+        return rms_norm(x, dim=-1)
 
 
 class Identity(nn.Module):

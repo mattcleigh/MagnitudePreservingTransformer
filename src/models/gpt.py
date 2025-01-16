@@ -6,7 +6,8 @@ from torch import nn
 from torch.nn import functional as F
 
 from src.layers.normalisation import get_norm
-from src.layers.transformer import EncoderBlock
+from src.layers.transformer import EncoderBlock, SelfAttention, SwiGLUNet
+from src.torch_utils import get_activations, remove_hooks
 
 
 class GPT(LightningModule):
@@ -39,8 +40,9 @@ class GPT(LightningModule):
         self.final_norm = get_norm(final_norm, dim)
         self.out_layer = nn.Linear(dim, vocab_size)
 
-    def forward(self, x: T.Tensor, y: T.Tensor | None = None) -> T.Tensor:
-        x = self.embed(x.long()) + self.abs_enc[:, : x.size(1)]
+    def forward(self, x: T.LongTensor, y: T.LongTensor | None = None) -> T.Tensor:
+        _B, S = x.shape
+        x = self.embed(x) + self.abs_enc[:, :S]
         for layer in self.layers:
             x = layer(x)
         if y is not None:
@@ -52,8 +54,18 @@ class GPT(LightningModule):
         return output, loss
 
     def training_step(self, data: dict, batch_idx: int) -> T.Tensor:
+        if batch_idx % 100 == 0:
+            act_dict = {}
+            hooks = get_activations(self, act_dict, types=[SelfAttention, SwiGLUNet])
+
         _, loss = self.forward(*data)
         self.log("train/total_loss", loss)
+
+        if batch_idx % 100 == 0:
+            for key, val in act_dict.items():
+                self.log(f"act/{key}", val)
+            remove_hooks(hooks)
+
         return loss
 
     def validation_step(self, data: dict, batch_idx: int) -> T.Tensor:

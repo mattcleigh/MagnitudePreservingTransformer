@@ -1,0 +1,18 @@
+_target_: src.models.mpgpt.MPGPT
+vocab_size: 50257
+dim: 512
+num_layers: 8
+max_seq_len: ${datamodule.max_seq_len}
+layer_config:
+  num_heads: 8
+  causal: True
+optimizer:
+  _target_: torch.optim.Adam # No weight decay
+  _partial_: True
+  lr: 1e-2
+  betas: [0.9, 0.95]
+scheduler:
+  _target_: src.schedulers.linear_warmup_cosine_decay
+  _partial_: True
+  warmup_steps: 1000
+  total_steps: 1000_000

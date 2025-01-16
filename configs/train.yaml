@@ -4,12 +4,13 @@
 defaults:
   - _self_
   - hydra: default
-  - datamodule: openwebtext
+  - datamodule: wikitext
+  - model: gpt
   - experiment: null
 
 seed: 42 # For reproducibility
 project_name: gpt # Determines output directory path and wandb project
-network_name: gpt # Used for both saving and wandb
+network_name: test # Used for both saving and wandb
 output_dir: /srv/beegfs/scratch/groups/rodem/nlp/
 ckpt_path: null  # Checkpoint path to resume training
 weight_ckpt_path: null # Checkpoint path to load weights (but not optimizers etc)
@@ -24,33 +25,6 @@ tags: null # Extra tags passed to the logger
 # Will also resume the loggers and set the ckpt_path to the latest
 full_resume: False
 ckpt_flag: last.ckpt # Name of the checkpoint file, can use wildcards
-
-# Model settings
-model:
-  _target_: src.models.gpt.GPT
-  vocab_size: 50257
-  dim: 512
-  num_layers: 12
-  max_seq_len: ${datamodule.max_seq_len}
-  final_norm: rms
-  layer_config:
-    num_heads: 8
-    drop: 0
-    causal: True
-    pre_norm: rms
-    qk_norm: rms
-    out_norm: rms
-  optimizer:
-    _target_: torch.optim.AdamW
-    _partial_: True
-    lr: 5e-4
-    betas: [0.9, 0.95]
-    weight_decay: 0.1
-  scheduler:
-    _target_: src.schedulers.linear_warmup_cosine_decay
-    _partial_: True
-    warmup_steps: 1000
-    total_steps: 1000_000
 
 # Trainer settings
 trainer:
