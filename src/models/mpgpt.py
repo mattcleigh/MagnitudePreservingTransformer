@@ -5,11 +5,9 @@ import torch as T
 from lightning import LightningModule
 from torch import nn
 from torch.nn import functional as F
-import wandb.sync
 
 from src.layers.normalisation import rms_norm, unit_norm
 from src.torch_utils import get_activations, remove_hooks
-import wandb
 
 
 def mp_silu(x: T.Tensor) -> T.Tensor:
@@ -110,9 +108,11 @@ class MPSelfAttention(nn.Module):
         q, k, v = self.in_proj(x).reshape(shape).permute(2, 0, 3, 1, 4).unbind(0)
         q = rms_norm(q)
         k = rms_norm(k)
-        a = F.scaled_dot_product_attention(q, k, v, is_causal=self.causal)
-        a = rms_norm(a)
+        a = F.scaled_dot_product_attention(
+            q, k, v, is_causal=self.causal, scale=self.scale
+        )
         a = a.transpose(1, 2).contiguous().view(B, S, D)
+        a = rms_norm(a)
         return self.out_proj(a)
 
 

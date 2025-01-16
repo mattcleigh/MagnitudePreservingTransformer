@@ -38,7 +38,7 @@ def remove_hooks(hooks):
 
 
 class AdamWS(T.optim.AdamW):
-    """A version of the AdamW optimizer were weight decay is only applied to matrices."""
+    """AdamW optimizer where weight decay is only applied to matrices."""
 
     def __init__(self, params: Iterable | dict, weight_decay: float = 1e-2, **kwargs):
         params = list(params)
