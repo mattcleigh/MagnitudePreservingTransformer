@@ -17,6 +17,9 @@ def mp_silu(x: T.Tensor) -> T.Tensor:
 
 def mp_add(a: T.Tensor, b: T.Tensor, t: float = 0.5) -> T.Tensor:
     """Magnitude preserving weighted addition."""
+    if isinstance(t, T.Tensor):
+        denom = T.sqrt((1 - t.detach()) ** 2 + t.detach() ** 2)
+        return (a + t * (b - a)) / denom
     return a.lerp(b, t) / math.sqrt((1 - t) ** 2 + t**2)
 
 
@@ -129,20 +132,12 @@ class MPEncoderBlock(nn.Module):
         super().__init__()
         self.attn = MPSelfAttention(dim, num_heads, causal)
         self.ff = MPSwiGLUNet(dim, ff_mult)
-
-        self.alpha_v = 0.01
-        self.alpha_scale = dim ** (-0.5)
-        self.alpha_attn = nn.Parameter(self.alpha_scale * T.ones(dim))
-        self.alpha_ff = nn.Parameter(self.alpha_scale * T.ones(dim))
+        self.t_attn = nn.Parameter(T.zeros(dim))
+        self.t_ff = nn.Parameter(T.zeros(dim))
 
     def forward(self, x: T.Tensor) -> T.Tensor:
-        alpha = self.alpha_attn * self.alpha_v / self.alpha_scale
-        x = x + alpha.abs() * (rms_norm(self.attn(x)) - x)
-        x = rms_norm(x)
-
-        alpha = self.alpha_ff * self.alpha_v / self.alpha_scale
-        x = x + alpha.abs() * (rms_norm(self.ff(x)) - x)
-        return rms_norm(x)
+        x = mp_add(x, self.attn(rms_norm(x)), self.t_attn)
+        return mp_add(x, self.ff(rms_norm(x)), self.t_ff)
 
 
 class MPGPT(LightningModule):
@@ -176,21 +171,18 @@ class MPGPT(LightningModule):
             MPEncoderBlock(dim, **layer_config) for _ in range(num_layers)
         ])
         self.out_layer = MPLinear(dim, vocab_size)
-
-        self.alpha_scale = dim ** (-0.5)
-        self.alpha_out = nn.Parameter(self.alpha_scale * T.ones(vocab_size))
+        self.gain = nn.Parameter(T.zeros(1))
 
     def forward(self, x: T.LongTensor, y: T.LongTensor | None = None) -> T.Tensor:
         _B, S = x.shape
-        x = mp_add(self.embed(x), self.abs_enc()[:, :S], 0.1)
+        x = mp_add(self.embed(x), self.abs_enc()[:, :S], 0.2)
         for layer in self.layers:
             x = layer(x)
-        alpha = self.alpha_out / self.alpha_scale
         if y is not None:
-            output = self.out_layer(x) * alpha
+            output = self.out_layer(x) * self.gain
             loss = F.cross_entropy(output.view(-1, output.size(-1)), y.view(-1))
         else:
-            output = self.out_layer(x[:, [-1]]) * alpha
+            output = self.out_layer(x[:, [-1]]) * self.gain
             loss = None
         return output, loss
 

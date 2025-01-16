@@ -9,10 +9,10 @@ layer_config:
 optimizer:
   _target_: torch.optim.Adam # No weight decay
   _partial_: True
-  lr: 5e-4
+  lr: 1e-3
   betas: [0.9, 0.95]
 scheduler:
   _target_: src.schedulers.linear_warmup_cosine_decay
   _partial_: True
-  warmup_steps: 1000
+  warmup_steps: 1
   total_steps: 1000_000
