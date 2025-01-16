@@ -8,8 +8,8 @@ from torch import nn
 def get_activations(
     model: nn.Module,
     activation_dict: dict,
-    regex: None | list = None,
-    types: None | list = None,
+    regex: list | None = None,
+    types: list | None = None,
 ) -> list:
     hooks = []
 
