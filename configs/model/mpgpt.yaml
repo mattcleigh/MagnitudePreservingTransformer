@@ -1,16 +1,16 @@
 _target_: src.models.mpgpt.MPGPT
 vocab_size: 50257
-dim: 1024
+dim: 512
 num_layers: 8
 num_heads: 16
 ff_mult: 2
 optimizer:
   _target_: torch.optim.Adam # No weight decay
   _partial_: True
-  lr: 1e-3
+  lr: 1.5e-3
   betas: [0.9, 0.95]
 scheduler:
   _target_: src.schedulers.linear_warmup_cosine_decay
   _partial_: True
   warmup_steps: 10
-  total_steps: 1000_000
+  total_steps: 200_000

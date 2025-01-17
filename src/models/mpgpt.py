@@ -19,21 +19,27 @@ def mp_sum(a: T.Tensor, b: T.Tensor, t: float = 0.5) -> T.Tensor:
     return a.lerp(b, t) / math.sqrt((1 - t) ** 2 + t**2)
 
 
-class MPParameter(nn.Module):
+class MPModule(nn.Module):
+    """Base class for magnitude preserving modules, mainly to allow searching."""
+
+    @T.no_grad
+    def force_norm(self) -> None:
+        """Force normalisation of the weights."""
+        self.weight.data.copy_(rms_norm(self.weight.data))
+
+
+class MPParameter(MPModule):
     """Fully learnable parameter with consistant normalisation."""
 
     def __init__(self, weight: T.Tensor) -> None:
         super().__init__()
-        self.weight = nn.Parameter(weight)
+        self.weight = nn.Parameter(rms_norm(weight))
 
     def forward(self) -> T.Tensor:
-        if self.training:
-            with T.no_grad():
-                self.weight.data.copy_(rms_norm(self.weight.data))
         return rms_norm(self.weight)
 
 
-class MPLinear(nn.Module):
+class MPLinear(MPModule):
     """Magnitude Preserving Linear layer.
 
     Normalisation is done twice in the forward pass due to Adam optimiser.
@@ -46,26 +52,20 @@ class MPLinear(nn.Module):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.weight = nn.Parameter(T.randn(out_features, in_features))
+        self.weight = nn.Parameter(rms_norm(T.randn(out_features, in_features)))
 
     def forward(self, x: T.Tensor) -> T.Tensor:
-        if self.training:
-            with T.no_grad():
-                self.weight.data.copy_(rms_norm(self.weight.data))
         return F.linear(x, unit_norm(self.weight))
 
 
-class MPEmbedding(nn.Module):
+class MPEmbedding(MPModule):
     """Embedding layer to project the input to a sphere."""
 
     def __init__(self, num_embeddings: int, embedding_dim: int) -> None:
         super().__init__()
-        self.weight = nn.Parameter(T.randn(num_embeddings, embedding_dim))
+        self.weight = nn.Parameter(rms_norm(T.randn(num_embeddings, embedding_dim)))
 
     def forward(self, x: T.Tensor) -> T.Tensor:
-        if self.training:
-            with T.no_grad():
-                self.weight.data.copy_(rms_norm(self.weight.data))
         return F.embedding(x, rms_norm(self.weight))
 
 
@@ -213,6 +213,13 @@ class MPGPT(LightningModule):
         _, loss = self.forward(*data)
         self.log("val/total_loss", loss)
         return loss
+
+    def optimizer_step(self, epoch, batch_idx, *args, **kwargs) -> None:
+        """Ensures that all weights are properly normalised after one step."""
+        super().optimizer_step(epoch, batch_idx, *args, **kwargs)
+        for m in self.modules():
+            if isinstance(m, MPModule):
+                m.force_norm()
 
     def configure_optimizers(self) -> dict:
         opt = self.hparams.optimizer(self.parameters())

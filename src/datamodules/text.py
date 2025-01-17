@@ -43,8 +43,8 @@ class TextModule(LightningDataModule):
         val_path: str,
         test_path: str,
         max_seq_len: int,
-        train_epoch_size: int,
-        val_epoch_size: int,
+        n_train_steps: int,
+        n_val_steps: int,
         batch_size: int,
         num_workers: int,
         pin_memory: bool,
@@ -54,8 +54,8 @@ class TextModule(LightningDataModule):
         self.val_path = val_path
         self.test_path = test_path
         self.max_seq_len = max_seq_len
-        self.train_epoch_size = train_epoch_size
-        self.val_epoch_size = val_epoch_size
+        self.n_train_steps = n_train_steps
+        self.n_val_steps = n_val_steps
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
@@ -64,20 +64,14 @@ class TextModule(LightningDataModule):
         """Sets up the relevant datasets."""
         if stage in {"fit", "train"}:
             self.train_set = TextDataset(
-                self.train_path,
-                self.max_seq_len,
-                self.train_epoch_size,
+                self.train_path, self.max_seq_len, self.n_train_steps * self.batch_size
             )
             self.val_set = TextDataset(
-                self.val_path,
-                self.max_seq_len,
-                self.val_epoch_size,
+                self.val_path, self.max_seq_len, self.n_val_steps * self.batch_size
             )
         if stage in {"predict", "test"}:
             self.test_set = TextDataset(
-                self.test_path,
-                self.max_seq_len,
-                self.val_epoch_size,
+                self.test_path, self.max_seq_len, self.n_val_steps * self.batch_size
             )
 
     def get_dataloader(self, dataset: Dataset) -> DataLoader:

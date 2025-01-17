@@ -1,8 +1,11 @@
+import logging
 import re
 from collections.abc import Iterable
 
 import torch as T
 from torch import nn
+
+log = logging.getLogger(__name__)
 
 
 def get_activations(
@@ -46,6 +49,12 @@ class AdamWS(T.optim.AdamW):
             params = [x for _, x in params]
         decay_params = [p for p in params if p.dim() >= 2]
         nodecay_params = [p for p in params if p.dim() < 2]
+        num_decay_params = sum(p.numel() for p in decay_params)
+        num_nodecay_params = sum(p.numel() for p in nodecay_params)
+        log.info(
+            f"AdamWS: Applying weight decay {weight_decay} to {num_decay_params} "
+            f"parameters, and 0.0 to {num_nodecay_params} parameters."
+        )
         optim_groups = [
             {"params": decay_params, "weight_decay": weight_decay},
             {"params": nodecay_params, "weight_decay": 0.0},
