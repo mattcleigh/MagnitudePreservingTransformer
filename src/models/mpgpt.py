@@ -101,6 +101,7 @@ class MPSelfAttention(nn.Module):
         self,
         dim: int,
         num_heads: int = 4,
+        do_mp_softmax: bool = False,
     ) -> None:
         super().__init__()
         assert dim % num_heads == 0, "dim must be divisible by num_heads"
@@ -109,6 +110,7 @@ class MPSelfAttention(nn.Module):
         self.attn_dim = dim // num_heads
         self.in_proj = MPLinear(dim, dim * 3)
         self.out_proj = MPLinear(dim, dim)
+        self.do_mp_softmax = do_mp_softmax
 
     def forward(self, x: T.Tensor, rp_freqs: T.Tensor | None = None) -> T.Tensor:
         B, S, D = x.shape
@@ -119,7 +121,15 @@ class MPSelfAttention(nn.Module):
             k = apply_rope(k, rp_freqs)
         q = rms_norm(q)
         k = rms_norm(k)
-        a = F.scaled_dot_product_attention(q, k, v, is_causal=True)
+
+        if self.do_mp_softmax:
+            a = q @ k.transpose(-2, -1) / math.sqrt(self.attn_dim)
+            a = a - a.max(-1, keepdim=True).values
+            a = unit_norm(a.exp(), dim=(-1))
+            a = a @ v
+        else:
+            a = F.scaled_dot_product_attention(q, k, v, is_causal=True)
+
         a = a.transpose(1, 2).contiguous().view(B, S, D)
         a = rms_norm(a)
         return self.out_proj(a)
@@ -128,9 +138,15 @@ class MPSelfAttention(nn.Module):
 class MPEncoderBlock(nn.Module):
     """Encoder block with Riemannian optimization updates on a sphere."""
 
-    def __init__(self, dim: int, num_heads: int = 4, ff_mult: int = 4) -> None:
+    def __init__(
+        self,
+        dim: int,
+        num_heads: int = 4,
+        ff_mult: int = 2,
+        do_mp_softmax: bool = False,
+    ) -> None:
         super().__init__()
-        self.attn = MPSelfAttention(dim, num_heads)
+        self.attn = MPSelfAttention(dim, num_heads, do_mp_softmax)
         self.ff = MPSwiGLUNet(dim, ff_mult)
         self.ls_1 = nn.Parameter(T.randn(1, 1, dim) / 5)
         self.ls_2 = nn.Parameter(T.randn(1, 1, dim) / 5)
@@ -157,7 +173,8 @@ class MPGPT(LightningModule):
         dim: int = 128,
         num_layers: int = 6,
         num_heads: int = 4,
-        ff_mult: int = 4,
+        ff_mult: int = 2,
+        do_mp_softmax: bool = False,
     ) -> None:
         super().__init__()
         self.save_hyperparameters(logger=False)
@@ -167,7 +184,8 @@ class MPGPT(LightningModule):
 
         self.embed = MPEmbedding(vocab_size, dim)
         self.layers = nn.ModuleList([
-            MPEncoderBlock(dim, num_heads, ff_mult) for _ in range(num_layers)
+            MPEncoderBlock(dim, num_heads, ff_mult, do_mp_softmax)
+            for _ in range(num_layers)
         ])
         self.out_layer = MPLinear(dim, vocab_size)
         self.out_gain = nn.Parameter(T.ones(1, 1, vocab_size) / 100)

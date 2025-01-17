@@ -91,7 +91,7 @@ class EncoderBlock(nn.Module):
         self,
         dim: int,
         num_heads: int,
-        ff_mult: int = 4,
+        ff_mult: int = 2,
         drop: float = 0.0,
         pre_norm: str = "layer",
         qk_norm: str = "none",
