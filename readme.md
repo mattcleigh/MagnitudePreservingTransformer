@@ -7,6 +7,14 @@ Relevant papers:
  - nGPT: https://arxiv.org/pdf/2410.01131v1.
  - Magnitude Preserving layers: https://arxiv.org/pdf/2312.02696.
 
+<div align: center;>
+  <img src="https://github.com/user-attachments/assets/1fac8343-7b3f-4587-aa86-fc448c86fe69" alt="" width="300"/>
+  <img src="https://github.com/user-attachments/assets/313bd529-e569-4c96-9b87-8d44f3f0ae7b" alt="" width="300"/>
+  <img src="https://github.com/user-attachments/assets/a230ee36-23e3-431d-8552-ec22816190cd" alt="" width="300"/>
+  <img src="https://github.com/user-attachments/assets/b59c00ab-e27d-490f-808e-95ac095a746d" alt="" width="300"/>
+  <img src="https://github.com/user-attachments/assets/4b4d64f3-8757-441c-adff-ed61ed5477a1" alt="" width="300"/>
+</div>
+
 ## Project Structure
 
 ```
