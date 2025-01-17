@@ -1,4 +1,4 @@
-# NLP Tests
+# Magnitude Preserving Transformer
 
 This repository contains a collection of scripts and configurations for training and testing homegrown NLP models.
 The project is structured to facilitate experimentation with different configurations and datasets.
