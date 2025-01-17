@@ -2,11 +2,10 @@
 
 This repository contains a collection of scripts and configurations for training and testing homegrown NLP models. The project is structured to facilitate experimentation with different configurations and datasets.
 Mainly it is so I can play around with different normalisation or magnitude preserving techniques.
-
-Currently of interest are:
+At the moment I am interested in a transformer that preserves the magnitude of all outputs in each layer.
+Relevant papers:
  - nGPT: https://arxiv.org/pdf/2410.01131v1.
  - Magnitude Preserving layers: https://arxiv.org/pdf/2312.02696.
-
 
 ## Project Structure
 

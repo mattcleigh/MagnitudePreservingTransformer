@@ -102,8 +102,8 @@ class EncoderBlock(nn.Module):
         self.ff = SwiGLUNet(dim, ff_mult, drop)
         self.norm1 = get_norm(pre_norm, dim)
         self.norm2 = get_norm(pre_norm, dim)
-        self.ls_1 = nn.Parameter(T.randn(1, 1, dim) / 5)
-        self.ls_2 = nn.Parameter(T.randn(1, 1, dim) / 5)
+        self.ls_1 = nn.Parameter(T.randn(dim) / 5)
+        self.ls_2 = nn.Parameter(T.randn(dim) / 5)
 
     def forward(self, x: T.Tensor, rp: T.Tensor | None = None) -> T.Tensor:
         x = x + self.ls_1 * self.attn(self.norm1(x), rp)
@@ -126,9 +126,9 @@ class Transformer(nn.Module):
         layer_config: dict | None = None,
     ) -> None:
         super().__init__()
-        assert not (do_pos_enc and not max_seq_len), (
-            "Define max_seq_len for positional encoding"
-        )
+        assert not (
+            do_pos_enc and not max_seq_len
+        ), "Define max_seq_len for positional encoding"
         layer_config = layer_config or {}
 
         self.dim = dim
