@@ -6,7 +6,12 @@ from torch import nn
 from torch.nn import functional as F
 
 from src.layers.normalisation import get_norm
-from src.layers.transformer import EncoderBlock, SelfAttention, SwiGLUNet
+from src.layers.transformer import (
+    EncoderBlock,
+    SelfAttention,
+    SwiGLUNet,
+    calc_rope_freqs,
+)
 from src.torch_utils import get_activations, remove_hooks
 
 
@@ -21,7 +26,6 @@ class GPT(LightningModule):
         scheduler: partial,
         dim: int = 128,
         num_layers: int = 6,
-        max_seq_len: int = 0,
         final_norm: str = "layer",
         layer_config: dict | None = None,
     ) -> None:
@@ -30,10 +34,9 @@ class GPT(LightningModule):
         layer_config = layer_config or {}
         self.dim = dim
         self.num_layers = num_layers
-        self.max_seq_len = max_seq_len
+        self.num_heads = layer_config.get("num_heads", 4)
 
         self.embed = nn.Embedding(vocab_size, dim)
-        self.abs_enc = nn.Parameter(T.randn(1, max_seq_len, dim) / 1000)
         self.layers = nn.ModuleList([
             EncoderBlock(dim, **layer_config) for _ in range(num_layers)
         ])
@@ -41,10 +44,10 @@ class GPT(LightningModule):
         self.out_layer = nn.Linear(dim, vocab_size)
 
     def forward(self, x: T.LongTensor, y: T.LongTensor | None = None) -> T.Tensor:
-        _B, S = x.shape
-        x = self.embed(x) + self.abs_enc[:, :S]
+        x = self.embed(x)
+        rp = calc_rope_freqs(x, self.num_heads)
         for layer in self.layers:
-            x = layer(x)
+            x = layer(x, rp)
         if y is not None:
             output = self.out_layer(self.final_norm(x))
             loss = F.cross_entropy(output.view(-1, output.size(-1)), y.long().view(-1))
@@ -56,7 +59,13 @@ class GPT(LightningModule):
     def training_step(self, data: dict, batch_idx: int) -> T.Tensor:
         if batch_idx % 100 == 0:
             act_dict = {}
-            hooks = get_activations(self, act_dict, types=[SelfAttention, SwiGLUNet])
+            hooks = get_activations(
+                self, act_dict, types=[SelfAttention, SwiGLUNet, EncoderBlock]
+            )
+            param_dict = {}
+            for n, param in self.named_parameters():
+                if "ls_" in n:
+                    param_dict[n] = param.detach().abs().mean()
 
         _, loss = self.forward(*data)
         self.log("train/total_loss", loss)
@@ -64,6 +73,8 @@ class GPT(LightningModule):
         if batch_idx % 100 == 0:
             for key, val in act_dict.items():
                 self.log(f"act/{key}", val)
+            for key, val in param_dict.items():
+                self.log(f"param/{key}_mean", val)
             remove_hooks(hooks)
 
         return loss

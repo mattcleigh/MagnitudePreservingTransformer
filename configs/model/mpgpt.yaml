@@ -1,11 +1,9 @@
 _target_: src.models.mpgpt.MPGPT
 vocab_size: 50257
-dim: 512
+dim: 1024
 num_layers: 8
-max_seq_len: ${datamodule.max_seq_len}
-layer_config:
-  num_heads: 8
-  causal: True
+num_heads: 16
+ff_mult: 2
 optimizer:
   _target_: torch.optim.Adam # No weight decay
   _partial_: True
@@ -14,5 +12,5 @@ optimizer:
 scheduler:
   _target_: src.schedulers.linear_warmup_cosine_decay
   _partial_: True
-  warmup_steps: 1
+  warmup_steps: 10
   total_steps: 1000_000

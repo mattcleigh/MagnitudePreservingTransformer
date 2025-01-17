@@ -5,6 +5,24 @@ from torch.nn import functional as F
 from src.layers.normalisation import get_norm
 
 
+def calc_rope_freqs(x: T.Tensor, num_heads: int, theta: float = 10000.0):
+    """Precompute the frequencies for the rotary positional encoding."""
+    _B, S, D = x.shape
+    HD = D // num_heads
+    freqs = 1.0 / (theta ** (T.arange(0, HD, 2, device=x.device).float() / HD))
+    t = T.arange(S, device=x.device, dtype=T.float32)
+    freqs = T.outer(t, freqs)
+    return T.polar(T.ones_like(freqs), freqs)
+
+
+def apply_rope(x: T.Tensor, freqs_cis: T.Tensor) -> T.Tensor:
+    """Rotate the input tensor using the precomputed frequencies."""
+    B, NH, S, HD = x.shape
+    out = T.view_as_complex(x.float().reshape(B, NH, S, HD // 2, 2))
+    out = T.view_as_real(out * freqs_cis)
+    return out.view_as(x).type_as(x)
+
+
 class SwiGLUNet(nn.Module):
     """Simple gated bilinear feedfoward network with the Swish activation."""
 
@@ -25,11 +43,10 @@ class SelfAttention(nn.Module):
     def __init__(
         self,
         dim: int,
-        num_heads: int = 1,
+        num_heads: int = 4,
         drop: float = 0,
         qk_norm: str = "none",
         out_norm: str = "none",
-        causal: bool = True,
     ) -> None:
         super().__init__()
         assert dim % num_heads == 0, "dim must be divisible by num_heads"
@@ -37,7 +54,6 @@ class SelfAttention(nn.Module):
         self.num_heads = num_heads
         self.attn_dim = dim // num_heads
         self.drop = drop
-        self.causal = causal
 
         self.in_proj = nn.Linear(dim, 3 * dim)
         self.out_proj = nn.Linear(dim, dim)
@@ -46,10 +62,13 @@ class SelfAttention(nn.Module):
         self.qk_norm = get_norm(qk_norm, self.attn_dim)
         self.out_norm = get_norm(out_norm, self.dim)
 
-    def forward(self, x: T.Tensor) -> T.Tensor:
+    def forward(self, x: T.Tensor, rp_freqs: T.Tensor | None = None) -> T.Tensor:
         B, S, D = x.shape
         shape = (B, S, 3, self.num_heads, self.attn_dim)
         q, k, v = self.in_proj(x).reshape(shape).permute(2, 0, 3, 1, 4).unbind(0)
+        if rp_freqs is not None:
+            q = apply_rope(q, rp_freqs)
+            k = apply_rope(k, rp_freqs)
         q = self.qk_norm(q)
         k = self.qk_norm(k)
         a = F.scaled_dot_product_attention(
@@ -57,7 +76,7 @@ class SelfAttention(nn.Module):
             k,
             v,
             dropout_p=self.drop * self.training,
-            is_causal=self.causal,
+            is_causal=True,
         )
         a = a.transpose(1, 2).contiguous().view(B, S, D)
         a = self.out_norm(a)
@@ -77,18 +96,17 @@ class EncoderBlock(nn.Module):
         pre_norm: str = "layer",
         qk_norm: str = "none",
         out_norm: str = "none",
-        causal: bool = True,
     ) -> None:
         super().__init__()
-        self.attn = SelfAttention(dim, num_heads, drop, qk_norm, out_norm, causal)
+        self.attn = SelfAttention(dim, num_heads, drop, qk_norm, out_norm)
         self.ff = SwiGLUNet(dim, ff_mult, drop)
         self.norm1 = get_norm(pre_norm, dim)
         self.norm2 = get_norm(pre_norm, dim)
-        self.ls_1 = nn.Parameter(T.randn(1, 1, dim) / 100)
-        self.ls_2 = nn.Parameter(T.randn(1, 1, dim) / 100)
+        self.ls_1 = nn.Parameter(T.randn(1, 1, dim) / 5)
+        self.ls_2 = nn.Parameter(T.randn(1, 1, dim) / 5)
 
-    def forward(self, x: T.Tensor) -> T.Tensor:
-        x = x + self.ls_1 * self.attn(self.norm1(x))
+    def forward(self, x: T.Tensor, rp: T.Tensor | None = None) -> T.Tensor:
+        x = x + self.ls_1 * self.attn(self.norm1(x), rp)
         return x + self.ls_2 * self.ff(self.norm2(x))
 
 

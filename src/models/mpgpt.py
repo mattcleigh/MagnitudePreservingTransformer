@@ -7,15 +7,11 @@ from torch import nn
 from torch.nn import functional as F
 
 from src.layers.normalisation import rms_norm, unit_norm
+from src.layers.transformer import apply_rope, calc_rope_freqs
 from src.torch_utils import get_activations, remove_hooks
 
 
-def mp_silu(x: T.Tensor) -> T.Tensor:
-    """Magnitude preserving Silu activation."""
-    return F.silu(x) / 0.596
-
-
-def mp_add(a: T.Tensor, b: T.Tensor, t: float = 0.5) -> T.Tensor:
+def mp_sum(a: T.Tensor, b: T.Tensor, t: float = 0.5) -> T.Tensor:
     """Magnitude preserving weighted addition."""
     if isinstance(t, T.Tensor):
         denom = T.sqrt((1 - t.detach()) ** 2 + t.detach() ** 2)
@@ -26,9 +22,9 @@ def mp_add(a: T.Tensor, b: T.Tensor, t: float = 0.5) -> T.Tensor:
 class MPParameter(nn.Module):
     """Fully learnable parameter with consistant normalisation."""
 
-    def __init__(self, *shape: int) -> None:
+    def __init__(self, weight: T.Tensor) -> None:
         super().__init__()
-        self.weight = nn.Parameter(T.randn(*shape))
+        self.weight = nn.Parameter(weight)
 
     def forward(self) -> T.Tensor:
         if self.training:
@@ -83,7 +79,19 @@ class MPSwiGLUNet(nn.Module):
 
     def forward(self, x: T.Tensor) -> T.Tensor:
         x1, x2 = self.lin1(x).chunk(2, dim=-1)
-        return self.lin2(mp_silu(x1) * x2)
+        return self.lin2(F.silu(x1) * x2 / 0.596)
+
+
+class MPMLP(nn.Module):
+    """Magnitude preserving MLP layer."""
+
+    def __init__(self, dim: int, mult: int = 2) -> None:
+        super().__init__()
+        self.lin1 = MPLinear(dim, mult * dim)
+        self.lin2 = MPLinear(mult * dim, dim)
+
+    def forward(self, x: T.Tensor) -> T.Tensor:
+        return self.lin2(F.silu(self.lin1(x)) / 0.596)
 
 
 class MPSelfAttention(nn.Module):
@@ -92,28 +100,26 @@ class MPSelfAttention(nn.Module):
     def __init__(
         self,
         dim: int,
-        num_heads: int = 1,
-        causal: bool = True,
+        num_heads: int = 4,
     ) -> None:
         super().__init__()
         assert dim % num_heads == 0, "dim must be divisible by num_heads"
         self.dim = dim
         self.num_heads = num_heads
         self.attn_dim = dim // num_heads
-        self.causal = causal
-        self.scale = self.attn_dim**0.5
         self.in_proj = MPLinear(dim, dim * 3)
         self.out_proj = MPLinear(dim, dim)
 
-    def forward(self, x: T.Tensor) -> T.Tensor:
+    def forward(self, x: T.Tensor, rp_freqs: T.Tensor | None = None) -> T.Tensor:
         B, S, D = x.shape
         shape = (B, S, 3, self.num_heads, self.attn_dim)
         q, k, v = self.in_proj(x).reshape(shape).permute(2, 0, 3, 1, 4).unbind(0)
+        if rp_freqs is not None:
+            q = apply_rope(q, rp_freqs)
+            k = apply_rope(k, rp_freqs)
         q = rms_norm(q)
         k = rms_norm(k)
-        a = F.scaled_dot_product_attention(
-            q, k, v, is_causal=self.causal, scale=self.scale
-        )
+        a = F.scaled_dot_product_attention(q, k, v, is_causal=True)
         a = a.transpose(1, 2).contiguous().view(B, S, D)
         a = rms_norm(a)
         return self.out_proj(a)
@@ -122,22 +128,16 @@ class MPSelfAttention(nn.Module):
 class MPEncoderBlock(nn.Module):
     """Encoder block with Riemannian optimization updates on a sphere."""
 
-    def __init__(
-        self,
-        dim: int,
-        num_heads: int = 1,
-        ff_mult: int = 4,
-        causal: bool = True,
-    ) -> None:
+    def __init__(self, dim: int, num_heads: int = 4, ff_mult: int = 4) -> None:
         super().__init__()
-        self.attn = MPSelfAttention(dim, num_heads, causal)
+        self.attn = MPSelfAttention(dim, num_heads)
         self.ff = MPSwiGLUNet(dim, ff_mult)
-        self.t_attn = nn.Parameter(T.zeros(dim))
-        self.t_ff = nn.Parameter(T.zeros(dim))
+        self.ls_1 = nn.Parameter(T.randn(1, 1, dim) / 5)
+        self.ls_2 = nn.Parameter(T.randn(1, 1, dim) / 5)
 
-    def forward(self, x: T.Tensor) -> T.Tensor:
-        x = mp_add(x, self.attn(rms_norm(x)), self.t_attn)
-        return mp_add(x, self.ff(rms_norm(x)), self.t_ff)
+    def forward(self, x: T.Tensor, rp: T.Tensor | None = None) -> T.Tensor:
+        x = mp_sum(x, self.attn(rms_norm(x), rp), self.ls_1.abs().clamp(0, 1))
+        return mp_sum(x, self.ff(rms_norm(x)), self.ls_2.abs().clamp(0, 1))
 
 
 class MPGPT(LightningModule):
@@ -155,34 +155,34 @@ class MPGPT(LightningModule):
         optimizer: partial,
         scheduler: partial,
         dim: int = 128,
-        max_seq_len: int = 1024,
         num_layers: int = 6,
-        layer_config: dict | None = None,
+        num_heads: int = 4,
+        ff_mult: int = 4,
     ) -> None:
         super().__init__()
         self.save_hyperparameters(logger=False)
-        layer_config = layer_config or {}
         self.dim = dim
         self.num_layers = num_layers
+        self.num_heads = num_heads
 
         self.embed = MPEmbedding(vocab_size, dim)
-        self.abs_enc = MPParameter(1, max_seq_len, dim)
         self.layers = nn.ModuleList([
-            MPEncoderBlock(dim, **layer_config) for _ in range(num_layers)
+            MPEncoderBlock(dim, num_heads, ff_mult) for _ in range(num_layers)
         ])
         self.out_layer = MPLinear(dim, vocab_size)
-        self.gain = nn.Parameter(T.zeros(1))
+        self.out_gain = nn.Parameter(T.ones(1, 1, vocab_size) / 100)
 
     def forward(self, x: T.LongTensor, y: T.LongTensor | None = None) -> T.Tensor:
-        _B, S = x.shape
-        x = mp_add(self.embed(x), self.abs_enc()[:, :S], 0.2)
+        x = self.embed(x)
+        rp = calc_rope_freqs(x, self.num_heads)
         for layer in self.layers:
-            x = layer(x)
+            x = layer(x, rp)
         if y is not None:
-            output = self.out_layer(x) * self.gain
+            output = self.out_layer(rms_norm(x)) * self.out_gain
             loss = F.cross_entropy(output.view(-1, output.size(-1)), y.view(-1))
         else:
-            output = self.out_layer(x[:, [-1]]) * self.gain
+            x = x[:, [-1]]
+            output = self.out_layer(rms_norm(x)) * self.out_gain
             loss = None
         return output, loss
 
@@ -190,8 +190,12 @@ class MPGPT(LightningModule):
         if batch_idx % 100 == 0:
             act_dict = {}
             hooks = get_activations(
-                self, act_dict, types=[MPSelfAttention, MPSwiGLUNet]
+                self, act_dict, types=[MPSelfAttention, MPSwiGLUNet, MPEncoderBlock]
             )
+            param_dict = {}
+            for n, param in self.named_parameters():
+                if "ls_" in n:
+                    param_dict[n] = param.detach().abs().mean()
 
         _, loss = self.forward(*data)
         self.log("train/total_loss", loss)
@@ -199,6 +203,8 @@ class MPGPT(LightningModule):
         if batch_idx % 100 == 0:
             for key, val in act_dict.items():
                 self.log(f"act/{key}", val)
+            for key, val in param_dict.items():
+                self.log(f"param/{key}_mean", val)
             remove_hooks(hooks)
 
         return loss
