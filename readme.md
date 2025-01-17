@@ -1,11 +1,14 @@
 # NLP Tests
 
-This repository contains a collection of scripts and configurations for training and testing homegrown NLP models. The project is structured to facilitate experimentation with different configurations and datasets.
+This repository contains a collection of scripts and configurations for training and testing homegrown NLP models.
+The project is structured to facilitate experimentation with different configurations and datasets.
 Mainly it is so I can play around with different normalisation or magnitude preserving techniques.
 At the moment I am interested in a transformer that preserves the magnitude of all outputs in each layer.
 Relevant papers:
  - nGPT: https://arxiv.org/pdf/2410.01131v1.
  - Magnitude Preserving layers: https://arxiv.org/pdf/2312.02696.
+
+Initial tests show that the specially designed MP layers help the transformer to learn more efficiently without any weight decay!
 
 <img src="https://github.com/user-attachments/assets/1fac8343-7b3f-4587-aa86-fc448c86fe69" alt="" width="300"/>
 <img src="https://github.com/user-attachments/assets/313bd529-e569-4c96-9b87-8d44f3f0ae7b" alt="" width="300"/>
