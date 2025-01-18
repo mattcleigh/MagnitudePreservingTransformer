@@ -21,37 +21,44 @@ Initial tests show that the specially designed MP layers help the transformer to
 ```
 ├── configs
 │   ├── datamodule
+│   │   ├── openwebtext.yaml
+│   │   └── wikitext.yaml
 │   ├── experiment
 │   │   ├── all_rms.yaml
 │   │   ├── all_token.yaml
 │   │   └── vanilla.yaml
 │   ├── hydra
+│   │   └── default.yaml
 │   ├── model
 │   │   ├── gpt.yaml
-│   │   └── mpgpt.yaml
+│   │   ├── mpgpt.yaml
+│   │   └── ngpt.yaml
 │   └── train.yaml
 ├── data
-│   └── wikitext-103
+├── LICENSE
 ├── outputs
+├── pyproject.toml
+├── readme.md
+├── requirements.txt
 ├── scripts
 │   ├── generate.py
 │   ├── setup_openwebtext.py
 │   ├── setup_wikitext.py
 │   └── train.py
-├── src
-│   ├── datamodules
-│   ├── hydra_utils.py
-│   ├── layers
-│   ├── models
-│   │   ├── gpt.py
-│   │   └── mpgpt.py
-│   ├── schedulers.py
-│   └── torch_utils.py
-├── LICENSE
-├── pyproject.toml
-├── readme.md
-├── requirements.txt
-└── .pre-commit-config.yaml
+└── src
+    ├── datamodules
+    │   └── text.py
+    ├── hydra_utils.py
+    ├── layers
+    │   ├── magnitude.py
+    │   ├── normalisation.py
+    │   └── transformer.py
+    ├── models
+    │   ├── gpt.py
+    │   ├── mpgpt.py
+    │   └── ngpt.py
+    ├── schedulers.py
+    └── torch_utils.py
 ```
 
 ### Key Directories and Files

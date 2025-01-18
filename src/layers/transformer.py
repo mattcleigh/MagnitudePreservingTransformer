@@ -102,8 +102,8 @@ class EncoderBlock(nn.Module):
         self.ff = SwiGLUNet(dim, ff_mult, drop)
         self.norm1 = get_norm(pre_norm, dim)
         self.norm2 = get_norm(pre_norm, dim)
-        self.ls_1 = nn.Parameter(T.randn(dim) / 5)
-        self.ls_2 = nn.Parameter(T.randn(dim) / 5)
+        self.ls_1 = nn.Parameter(T.ones(dim) / 10)
+        self.ls_2 = nn.Parameter(T.ones(dim) / 10)
 
     def forward(self, x: T.Tensor, rp: T.Tensor | None = None) -> T.Tensor:
         x = x + self.ls_1 * self.attn(self.norm1(x), rp)

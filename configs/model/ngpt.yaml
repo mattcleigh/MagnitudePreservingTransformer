@@ -1,4 +1,4 @@
-_target_: src.models.mpgpt.MPGPT
+_target_: src.models.ngpt.NGPT
 vocab_size: 50257
 dim: 512
 num_layers: 8
