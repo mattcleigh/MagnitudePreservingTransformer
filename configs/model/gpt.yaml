@@ -4,7 +4,7 @@ dim: 512
 num_layers: 8
 final_norm: rms
 layer_config:
-  num_heads: 8
+  num_heads: 16
   ff_mult: 2
   pre_norm: rms
   qk_norm: rms
