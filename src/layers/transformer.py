@@ -3,24 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from src.layers.normalisation import get_norm
-
-
-def calc_rope_freqs(x: T.Tensor, num_heads: int, theta: float = 10000.0):
-    """Precompute the frequencies for the rotary positional encoding."""
-    _B, S, D = x.shape
-    HD = D // num_heads
-    freqs = 1.0 / (theta ** (T.arange(0, HD, 2, device=x.device).float() / HD))
-    t = T.arange(S, device=x.device, dtype=T.float32)
-    freqs = T.outer(t, freqs)
-    return T.polar(T.ones_like(freqs), freqs)
-
-
-def apply_rope(x: T.Tensor, freqs_cis: T.Tensor) -> T.Tensor:
-    """Rotate the input tensor using the precomputed frequencies."""
-    B, NH, S, HD = x.shape
-    out = T.view_as_complex(x.float().reshape(B, NH, S, HD // 2, 2))
-    out = T.view_as_real(out * freqs_cis)
-    return out.view_as(x).type_as(x)
+from src.torch_utils import apply_rope
 
 
 class SwiGLUNet(nn.Module):
@@ -108,50 +91,3 @@ class EncoderBlock(nn.Module):
     def forward(self, x: T.Tensor, rp: T.Tensor | None = None) -> T.Tensor:
         x = x + self.ls_1 * self.attn(self.norm1(x), rp)
         return x + self.ls_2 * self.ff(self.norm2(x))
-
-
-class Transformer(nn.Module):
-    """Transformer encoder stack with embedding layer."""
-
-    def __init__(
-        self,
-        *,
-        dim: int = 128,
-        inpt_dim: int = 0,
-        outp_dim: int = 0,
-        num_layers: int = 6,
-        max_seq_len: int = 0,
-        do_pos_enc: bool = False,
-        final_norm: str = "layer",
-        layer_config: dict | None = None,
-    ) -> None:
-        super().__init__()
-        assert not (do_pos_enc and not max_seq_len), (
-            "Define max_seq_len for positional encoding"
-        )
-        layer_config = layer_config or {}
-
-        self.dim = dim
-        self.num_layers = num_layers
-        self.inpt_dim = inpt_dim or dim
-        self.outp_dim = outp_dim or dim
-
-        # Layer structure
-        self.in_layer = nn.Linear(inpt_dim, dim)
-        self.layers = nn.ModuleList([
-            EncoderBlock(dim, **layer_config) for _ in range(num_layers)
-        ])
-        self.final_norm = get_norm(final_norm, dim)
-        self.out_layer = nn.Linear(dim, outp_dim)
-
-        # Optional positional encoding
-        if do_pos_enc:
-            self.abs_enc = nn.Parameter(T.randn(1, max_seq_len, dim) / 1000)
-
-    def forward(self, x: T.Tensor) -> T.Tensor:
-        x = self.in_layer(x)
-        if hasattr(self, "abs_enc"):
-            x = x + self.abs_enc[:, : x.shape[1]]
-        for layer in self.layers:
-            x = layer(x)
-        return self.out_layer(self.final_norm(x))

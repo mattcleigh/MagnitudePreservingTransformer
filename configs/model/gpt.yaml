@@ -8,7 +8,7 @@ layer_config:
   ff_mult: 2
   pre_norm: rms
   qk_norm: rms
-  out_norm: none
+  out_norm: rms
 optimizer:
   _target_: src.torch_utils.AdamWS
   _partial_: True
@@ -18,5 +18,5 @@ optimizer:
 scheduler:
   _target_: src.schedulers.linear_warmup_cosine_decay
   _partial_: True
-  warmup_steps: 5_000
+  warmup_steps: 1_000
   total_steps: 200_000

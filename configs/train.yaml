@@ -51,6 +51,10 @@ logger:
   name: ${network_name}
   save_dir: ${full_path}
   resume: ${full_resume}
+  save_code: True
+  settings:
+    _target_: wandb.Settings
+    code_dir: ${oc.env:PROJECT_ROOT}
 
 # Callbacks
 callbacks:

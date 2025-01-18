@@ -1,23 +1,9 @@
 """Various custom normalisation layers."""
 
-import math
-
 import torch as T
 from torch import nn
 
-
-def unit_norm(x, dim: int | tuple = -1, eps: float = 1e-4) -> T.Tensor:
-    """Normalise the vector to a unit length."""
-    n = T.linalg.vector_norm(x.float(), dim=dim, keepdim=True, dtype=T.float32)
-    n = T.add(eps, n)
-    return x / n.to(x.dtype)
-
-
-def rms_norm(x, dim: int | tuple = -1, eps: float = 1e-4) -> T.Tensor:
-    """Normalise the vector to have unit variance."""
-    n = T.linalg.vector_norm(x.float(), dim=dim, keepdim=True, dtype=T.float32)
-    n = T.add(eps, n, alpha=math.sqrt(n.numel() / x.numel()))
-    return x / n.to(x.dtype)
+from src.torch_utils import rms_norm
 
 
 class RMSNorm(nn.Module):

@@ -4,6 +4,7 @@ dim: 512
 num_layers: 8
 num_heads: 16
 ff_mult: 2
+res_type: mp-pre
 optimizer:
   _target_: torch.optim.Adam # No weight decay
   _partial_: True

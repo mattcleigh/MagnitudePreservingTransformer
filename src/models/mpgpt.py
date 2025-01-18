@@ -13,9 +13,7 @@ from src.layers.magnitude import (
     MPSelfAttention,
     MPSwiGLUNet,
 )
-from src.layers.normalisation import rms_norm
-from src.layers.transformer import calc_rope_freqs
-from src.torch_utils import get_activations, remove_hooks
+from src.torch_utils import calc_rope_freqs, get_activations, remove_hooks
 
 
 class MPGPT(LightningModule):
@@ -34,6 +32,7 @@ class MPGPT(LightningModule):
         num_layers: int = 6,
         num_heads: int = 4,
         ff_mult: int = 2,
+        res_type: str = "ngpt",
     ) -> None:
         super().__init__()
         self.save_hyperparameters(logger=False)
@@ -43,10 +42,10 @@ class MPGPT(LightningModule):
 
         self.embed = MPEmbedding(vocab_size, dim)
         self.layers = nn.ModuleList([
-            MPEncoderBlock(dim, num_heads, ff_mult) for _ in range(num_layers)
+            MPEncoderBlock(dim, num_heads, ff_mult, res_type) for _ in range(num_layers)
         ])
         self.out_layer = MPLinear(dim, vocab_size)
-        self.out_gain = nn.Parameter(T.ones(1, 1, vocab_size) / 100)
+        self.out_gain = nn.Parameter(T.ones(vocab_size))
 
     def forward(self, x: T.LongTensor, y: T.LongTensor | None = None) -> T.Tensor:
         x = self.embed(x)
@@ -54,11 +53,11 @@ class MPGPT(LightningModule):
         for layer in self.layers:
             x = layer(x, rp)
         if y is not None:
-            output = self.out_layer(rms_norm(x)) * self.out_gain
+            output = self.out_layer(x) * self.out_gain
             loss = F.cross_entropy(output.view(-1, output.size(-1)), y.view(-1))
         else:
             x = x[:, [-1]]
-            output = self.out_layer(rms_norm(x)) * self.out_gain
+            output = self.out_layer(x) * self.out_gain
             loss = None
         return output, loss
 
@@ -69,9 +68,9 @@ class MPGPT(LightningModule):
                 self, act_dict, types=[MPSelfAttention, MPSwiGLUNet, MPEncoderBlock]
             )
             param_dict = {}
-            for n, param in self.named_parameters():
+            for n, param in self.named_modules():  # LS is now a module
                 if "ls_" in n:
-                    param_dict[n] = param.detach().abs().mean()
+                    param_dict[n] = param().detach().abs().mean()
 
         _, loss = self.forward(*data)
         self.log("train/total_loss", loss)
@@ -91,12 +90,11 @@ class MPGPT(LightningModule):
         return loss
 
     def normalise_weights(self) -> None:
-        for m in self.modules():
+        for n, m in self.named_modules():
             if isinstance(m, MPModule):
                 m.force_norm()
-        for n, p in self.named_parameters():
             if "ls_" in n:
-                p.data.clamp_(0.05, 0.95)
+                m.eff_clamp_(0.02, 0.98)
 
     def optimizer_step(self, *args, **kwargs) -> None:
         """Ensures that all weights are properly normalised after one step."""

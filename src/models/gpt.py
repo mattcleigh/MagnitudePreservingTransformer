@@ -10,9 +10,8 @@ from src.layers.transformer import (
     EncoderBlock,
     SelfAttention,
     SwiGLUNet,
-    calc_rope_freqs,
 )
-from src.torch_utils import get_activations, remove_hooks
+from src.torch_utils import calc_rope_freqs, get_activations, remove_hooks
 
 
 class GPT(LightningModule):

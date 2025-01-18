@@ -19,16 +19,16 @@ def main():
     enc = tiktoken.get_encoding("gpt2")
 
     # Load the model from the lightning checkpoint.
-    model_path = "/srv/beegfs/scratch/groups/rodem/nlp/gpt/gpt/checkpoints/last.ckpt"
+    model_path = "/srv/beegfs/scratch/groups/rodem/nlp/gpt/GPT/checkpoints/last.ckpt"
     model = GPT.load_from_checkpoint(model_path)
     model.eval()
     model.requires_grad_(False)
 
     # Get the maximum input tokens
-    max_len = model.max_seq_len
+    max_len = 1024
     max_new_tokens = 100
-    temp = 1
-    top_k = 25
+    temp = 0.7
+    top_k = 100
     text = ""
 
     # Do a loop to generate the new tokens
@@ -69,3 +69,7 @@ def main():
         print("-------------------------")
         print(text)
         print("-------------------------")
+
+
+if __name__ == "__main__":
+    main()

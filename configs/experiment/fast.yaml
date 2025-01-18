@@ -1,0 +1,13 @@
+# @package _global_
+
+# For quick testing on the wiki dataset
+trainer:
+  max_epochs: 2
+  accumulate_grad_batches: 1
+
+datamodule:
+  n_train_steps: 1000
+  n_val_steps: 50
+
+# logger:
+#   offline: True
