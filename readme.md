@@ -7,6 +7,7 @@ At the moment I am interested in a transformer that preserves the magnitude of a
 Relevant papers:
  - nGPT: https://arxiv.org/pdf/2410.01131v1.
  - Magnitude Preserving layers (EDM2): https://arxiv.org/pdf/2312.02696.
+ - 
 I have ended up somewhere in the middle between these two approaches
 
 ## Main ideas
