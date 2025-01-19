@@ -7,6 +7,7 @@ At the moment I am interested in a transformer that preserves the magnitude of a
 Relevant papers:
  - nGPT: https://arxiv.org/pdf/2410.01131v1.
  - Magnitude Preserving layers (EDM2): https://arxiv.org/pdf/2312.02696.
+I have ended up somewhere in the middle between these two approaches
 
 ## Main ideas
 - Make all linear layers magnitude preserving
@@ -16,14 +17,15 @@ Relevant papers:
 - Remove all learnable affine transformations from rms norm
 - Remove weight decay and learning rate warmup
 - Use learnable magnitude preserving residual connections of the form:
-$$x \leftarrow \frac{x + \alpha(F(RMSNorm(x) - x))}{\sqrt{(1-\alpha^2)} + \alpha^2}$$
- - Where F is either MP-SelfAttention or MP-Swiglu and \alpha is a learnable tensor akin to LayerScale
+$$x \leftarrow \frac{x + \alpha(F(RMSNorm(x) - x))}{\sqrt{(1-\alpha)^2 + \alpha^2}}$$
+  - Where F is either MP-SelfAttention or MP-SwiGLU and $\alpha$ is a learnable tensor akin to LayerScale
 
 
 ## Initial Results
-Initial tests show that the specially designed MP layers help the transformer to learn more efficiently without any weight decay!
-- Pre-Norm transformers require strong weight decay (0.1) to ensure magnitude doesnt grow through layer
-- I don't have access to the required compute for a proper GPT2 scale test :( 
+- Pre-Norm transformers require strong weight decay (0.1) to ensure signal magnitude remains stable with each layer
+- MP layers help the transformer to learn more efficiently without any weight decay
+- My limited tests (small model and small batchsize) show MP-GPT improving over standard GPT (PreNorm+QKNorm+LayerScale)
+- I don't have access to the required compute for a proper GPT2 scale the testing :(
 
 <img src="https://github.com/user-attachments/assets/dc96a32e-6dce-4abb-ba10-c4d8c84ab014" alt="" width="300"/>
 <img src="https://github.com/user-attachments/assets/6631c3a2-1b84-4fde-8630-eca95e8bf3ac" alt="" width="300"/>
