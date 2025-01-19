@@ -6,17 +6,34 @@ Mainly it is so I can play around with different normalisation or magnitude pres
 At the moment I am interested in a transformer that preserves the magnitude of all outputs in each layer.
 Relevant papers:
  - nGPT: https://arxiv.org/pdf/2410.01131v1.
- - Magnitude Preserving layers: https://arxiv.org/pdf/2312.02696.
+ - Magnitude Preserving layers (EDM2): https://arxiv.org/pdf/2312.02696.
+
+Main ideas
+- Make all linear layers magnitude preserving
+ - Manually unit_norm weights after each SGD step
+ - Manyallu unit_norm weights during foward pass (ensures gradients are orthogonal)
+- Make the embedding magnitude preserving in the same way
+- Remove all learnable affine transformations from rms norm
+- Remove weight decay and learning rate warmup
+- Use learnable magnitude preserving residual connections of the form:
+
+$$x \leftarrow \frac{x + \alpha(F(RMSNorm(x) - x))}{\sqrt{(1-\alpha^2)} + \alpha^2}$$
+ - Where F is either MP-SelfAttention or MP-Swiglu and \alpha is a learnable tensor akin to LayerScale
+
 
 Initial tests show that the specially designed MP layers help the transformer to learn more efficiently without any weight decay!
+- I don't have access to the required compute for a proper GPT2 scale test :( 
 
-<img src="https://github.com/user-attachments/assets/1fac8343-7b3f-4587-aa86-fc448c86fe69" alt="" width="300"/>
-<img src="https://github.com/user-attachments/assets/313bd529-e569-4c96-9b87-8d44f3f0ae7b" alt="" width="300"/>
-<img src="https://github.com/user-attachments/assets/a230ee36-23e3-431d-8552-ec22816190cd" alt="" width="300"/>
-<img src="https://github.com/user-attachments/assets/b59c00ab-e27d-490f-808e-95ac095a746d" alt="" width="300"/>
-<img src="https://github.com/user-attachments/assets/4b4d64f3-8757-441c-adff-ed61ed5477a1" alt="" width="300"/>
+<img src="https://github.com/user-attachments/assets/dc96a32e-6dce-4abb-ba10-c4d8c84ab014" alt="" width="300"/>
+<img src="https://github.com/user-attachments/assets/6631c3a2-1b84-4fde-8630-eca95e8bf3ac" alt="" width="300"/>
+<img src="https://github.com/user-attachments/assets/4d1c7553-50b8-4152-b87b-b8e30fe69058" alt="" width="300"/>
+<img src="https://github.com/user-attachments/assets/58ebe7bd-a962-4108-a1c6-4d0fbe9a6abd" alt="" width="300"/>
+<img src="https://github.com/user-attachments/assets/4e1381ff-20c1-46af-bc9d-324a973eb924" alt="" width="300"/>
+<img src="https://github.com/user-attachments/assets/9b896926-f122-41d1-a7e0-0ff43ea4048b" alt="" width="300"/>
 
-## Project Structure
+
+
+Project Structure
 
 ```
 ├── configs
