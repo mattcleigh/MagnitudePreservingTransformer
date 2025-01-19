@@ -3,7 +3,7 @@ train_path: /home/users/l/leighm/scratch/openwebtext/train.bin
 val_path: /home/users/l/leighm/scratch/openwebtext/test.bin
 test_path: /home/users/l/leighm/scratch/openwebtext/test.bin
 max_seq_len: 1024
-n_train_steps: 10_000
+n_train_steps: 20_000
 n_val_steps: 500
 batch_size: 16
 num_workers: 4

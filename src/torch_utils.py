@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 def mp_sum(a: T.Tensor, b: T.Tensor, t: float = 0.5) -> T.Tensor:
     """Magnitude preserving weighted addition."""
     if isinstance(t, T.Tensor):
-        return (a + t * (b - a)) / T.sqrt((1 - t) ** 2 + t**2)
+        return (a + t * (b - a)) / T.sqrt(1 - 2 * t + 2 * t**2)
     return a.lerp(b, t) / math.sqrt((1 - t) ** 2 + t**2)
 
 

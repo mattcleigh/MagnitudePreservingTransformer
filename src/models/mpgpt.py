@@ -12,6 +12,7 @@ from src.layers.magnitude import (
     MPModule,
     MPSelfAttention,
     MPSwiGLUNet,
+    SParameter,
 )
 from src.torch_utils import calc_rope_freqs, get_activations, remove_hooks
 
@@ -45,7 +46,7 @@ class MPGPT(LightningModule):
             MPEncoderBlock(dim, num_heads, ff_mult, res_type) for _ in range(num_layers)
         ])
         self.out_layer = MPLinear(dim, vocab_size)
-        self.out_gain = nn.Parameter(T.ones(vocab_size))
+        self.out_gain = SParameter(T.ones(vocab_size))
 
     def forward(self, x: T.LongTensor, y: T.LongTensor | None = None) -> T.Tensor:
         x = self.embed(x)
@@ -53,11 +54,11 @@ class MPGPT(LightningModule):
         for layer in self.layers:
             x = layer(x, rp)
         if y is not None:
-            output = self.out_layer(x) * self.out_gain
+            output = self.out_layer(x) * self.out_gain()
             loss = F.cross_entropy(output.view(-1, output.size(-1)), y.view(-1))
         else:
             x = x[:, [-1]]
-            output = self.out_layer(x) * self.out_gain
+            output = self.out_layer(x) * self.out_gain()
             loss = None
         return output, loss
 
@@ -68,9 +69,9 @@ class MPGPT(LightningModule):
                 self, act_dict, types=[MPSelfAttention, MPSwiGLUNet, MPEncoderBlock]
             )
             param_dict = {}
-            for n, param in self.named_modules():  # LS is now a module
+            for n, m in self.named_modules():  # LS is now a module
                 if "ls_" in n:
-                    param_dict[n] = param().detach().abs().mean()
+                    param_dict[n] = m().detach().abs().mean()
 
         _, loss = self.forward(*data)
         self.log("train/total_loss", loss)
@@ -86,7 +87,7 @@ class MPGPT(LightningModule):
 
     def validation_step(self, data: dict, batch_idx: int) -> T.Tensor:
         _, loss = self.forward(*data)
-        self.log("val/total_loss", loss)
+        self.log("val/total_loss", loss, sync_dist=True)
         return loss
 
     def normalise_weights(self) -> None:

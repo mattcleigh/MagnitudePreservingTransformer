@@ -14,4 +14,4 @@ scheduler:
   _target_: src.schedulers.linear_warmup_cosine_decay
   _partial_: True
   warmup_steps: 2
-  total_steps: 200_000
+  total_steps: 10_000
