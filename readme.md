@@ -1,5 +1,9 @@
 # Magnitude Preserving Transformer
 
+<p align="center">
+ <img src="https://github.com/user-attachments/assets/0b8c923b-19fd-451d-935a-15b8eecdda0d" alt="" width="200"/>
+</p>
+
 This repository contains a collection of scripts and configurations for training and testing homegrown NLP models.
 The project is structured to facilitate experimentation with different configurations and datasets.
 Mainly it is so I can play around with different normalisation or magnitude preserving techniques.
