@@ -7,19 +7,24 @@ At the moment I am interested in a transformer that preserves the magnitude of a
 Relevant papers:
  - nGPT: https://arxiv.org/pdf/2410.01131v1.
  - Magnitude Preserving layers (EDM2): https://arxiv.org/pdf/2312.02696.
-I have ended up somewhere in the middle between these two approaches
+   
+I have ended up somewhere in the middle between these two approaches.
 
 ## Main ideas
 - Make all linear layers magnitude preserving
- - Manually unit_norm weights after each SGD step
- - Manyallu unit_norm weights during foward pass (ensures gradients are orthogonal)
+  - Manually unit_norm weights after each SGD step
+  - Manually unit_norm weights during foward pass (ensures gradients are orthogonal)
 - Make the embedding magnitude preserving in the same way
-- Remove all learnable affine transformations from rms norm
+- Remove all learnable affine transformations from rms_norm
+  - We use it right before a linear layer anyway so the parameters are absorbed
 - Remove weight decay and learning rate warmup
+- Remove final normalisation
 - Use learnable magnitude preserving residual connections of the form:
-$$x \leftarrow \frac{x + \alpha(F(RMSNorm(x) - x))}{\sqrt{(1-\alpha)^2 + \alpha^2}}$$
-  - Where F is either MP-SelfAttention or MP-SwiGLU and $\alpha$ is a learnable tensor akin to LayerScale
 
+$$x \leftarrow \frac{x + \alpha(F(RMSNorm(x) - x))}{\sqrt{1-2\alpha + 2\alpha^2}}$$
+<p align="center">
+(F is either MP-SelfAttention or MP-SwiGLU and $\alpha$ is a learnable tensor akin to LayerScale)
+</p>
 
 ## Initial Results
 - Pre-Norm transformers require strong weight decay (0.1) to ensure signal magnitude remains stable with each layer
