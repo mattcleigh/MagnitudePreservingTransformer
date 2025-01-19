@@ -8,7 +8,7 @@ Relevant papers:
  - nGPT: https://arxiv.org/pdf/2410.01131v1.
  - Magnitude Preserving layers (EDM2): https://arxiv.org/pdf/2312.02696.
 
-Main ideas
+## Main ideas
 - Make all linear layers magnitude preserving
  - Manually unit_norm weights after each SGD step
  - Manyallu unit_norm weights during foward pass (ensures gradients are orthogonal)
@@ -16,11 +16,11 @@ Main ideas
 - Remove all learnable affine transformations from rms norm
 - Remove weight decay and learning rate warmup
 - Use learnable magnitude preserving residual connections of the form:
-
 $$x \leftarrow \frac{x + \alpha(F(RMSNorm(x) - x))}{\sqrt{(1-\alpha^2)} + \alpha^2}$$
  - Where F is either MP-SelfAttention or MP-Swiglu and \alpha is a learnable tensor akin to LayerScale
 
 
+## Initial Results
 Initial tests show that the specially designed MP layers help the transformer to learn more efficiently without any weight decay!
 - Pre-Norm transformers require strong weight decay (0.1) to ensure magnitude doesnt grow through layer
 - I don't have access to the required compute for a proper GPT2 scale test :( 
@@ -34,7 +34,7 @@ Initial tests show that the specially designed MP layers help the transformer to
 
 
 
-Project Structure
+## Project Structure
 
 ```
 ├── configs
