@@ -22,6 +22,7 @@ $$x \leftarrow \frac{x + \alpha(F(RMSNorm(x) - x))}{\sqrt{(1-\alpha^2)} + \alpha
 
 
 Initial tests show that the specially designed MP layers help the transformer to learn more efficiently without any weight decay!
+- Pre-Norm transformers require strong weight decay (0.1) to ensure magnitude doesnt grow through layer
 - I don't have access to the required compute for a proper GPT2 scale test :( 
 
 <img src="https://github.com/user-attachments/assets/dc96a32e-6dce-4abb-ba10-c4d8c84ab014" alt="" width="300"/>
