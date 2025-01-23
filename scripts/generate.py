@@ -10,6 +10,7 @@ root = rootutils.setup_root(search_from=__file__, pythonpath=True)
 
 
 from src.models.gpt import GPT
+from src.models.mpgpt import MPGPT
 
 T.set_grad_enabled(False)
 
@@ -19,17 +20,17 @@ def main():
     enc = tiktoken.get_encoding("gpt2")
 
     # Load the model from the lightning checkpoint.
-    model_path = "/srv/beegfs/scratch/groups/rodem/nlp/gpt/GPT/checkpoints/last.ckpt"
-    model = GPT.load_from_checkpoint(model_path)
+    model_path = "/srv/beegfs/scratch/groups/rodem/nlp/gpt/MP-GPT/checkpoints/last.ckpt"
+    model = MPGPT.load_from_checkpoint(model_path)
     model.eval()
     model.requires_grad_(False)
 
     # Get the maximum input tokens
     max_len = 1024
     max_new_tokens = 100
-    temp = 0.7
-    top_k = 100
-    text = ""
+    temp = 0.9
+    top_k = None
+    text = "The Mystery of the Hidden Garden. Leon Bozianu was no ordinary boy; he was a young adventurer with an insatiable curiosity. Living in the quaint village of St. Eloi, Leon spent his days exploring the picturesque landscape that surrounded his home. His favorite spot was the old, abandoned mansion at the edge of town, a place filled with secrets and wonders. One sunny afternoon, as Leon was wandering through the overgrown garden of the mansion, he stumbled upon an ancient key buried beneath a bed of ivy. The key was intricate, with delicate engravings and a hint of rust. Intrigued, Leon slipped the key into his pocket, determined to uncover its secrets. One sunny afternoon, as Leon was wandering through the overgrown garden of the mansion, he stumbled upon an ancient key buried beneath a bed of ivy. The key was intricate, with delicate engravings and a hint of rust. Intrigued, Leon slipped the key into his pocket, determined to uncover its secrets."
 
     # Do a loop to generate the new tokens
     while True:

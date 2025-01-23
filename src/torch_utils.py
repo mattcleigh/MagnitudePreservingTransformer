@@ -48,6 +48,12 @@ def rms_norm(x, dim: int | tuple = -1, eps: float = 1e-4) -> T.Tensor:
     return x / n.to(x.dtype)
 
 
+def rms(x, dim: int | tuple = -1, eps: float = 1e-6) -> T.Tensor:
+    """Calculate the RMS of the vector."""
+    n = T.linalg.vector_norm(x.float(), dim=dim, keepdim=True, dtype=T.float32)
+    return T.add(eps, n, alpha=math.sqrt(n.numel() / x.numel()))
+
+
 def get_activations(
     model: nn.Module,
     activation_dict: dict,
@@ -59,7 +65,7 @@ def get_activations(
 
     def hook(name) -> callable:
         def forward_hook(_module: nn.Module, _input: T.Tensor, output: T.Tensor):
-            activation_dict[name] = output.detach().std().cpu().item()
+            activation_dict[name] = rms(output.detach()).mean().cpu().item()
 
         return forward_hook
 
